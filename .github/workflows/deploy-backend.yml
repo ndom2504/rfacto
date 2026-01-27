@@ -1,0 +1,47 @@
+name: Deploy Backend to Azure Web App
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+    branches: [ main ]
+
+env:
+  NODE_VERSION: '18'
+  BACKEND_PATH: backend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '${{ env.BACKEND_PATH }}/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ${{ env.BACKEND_PATH }}
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: ${{ env.BACKEND_PATH }}
+        run: npx prisma generate
+
+      - name: Archive backend
+        run: |
+          cd ${{ env.BACKEND_PATH }}
+          zip -r ../backend.zip . -x "node_modules/.cache/**"
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: backend.zip

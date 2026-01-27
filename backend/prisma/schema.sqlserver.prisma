@@ -1,0 +1,121 @@
+// prisma/schema.prisma (Azure SQL Version)
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+// ===================== SETTINGS =====================
+
+model Settings {
+  id                 Int     @id
+  contractHT         Float   @default(0)
+  contractTTC        Float   @default(0)
+  contractNumber     String? // Numéro de contrat affiché sur les formulaires
+  defaultProvMs      String? // Province défaut Milestones
+  defaultProvDcr     String? // Province défaut DCR
+  defaultProvReserve String? // Province défaut Réserve
+  processingTaxProv1 String? // Provinces de taxe par défaut pour Paiement claim
+  processingTaxProv2 String?
+  processingTaxProv3 String?
+  // Utilisation de VarChar(Max) pour stocker de gros JSON
+  paymentClaimRowsJson String? @db.VarChar(Max)
+  delayAFacturer     Float   @default(1) // Délai pour "À facturer"
+  delayFacture       Float   @default(1) // Délai pour "Facturé"
+  delayPaye          Float   @default(1) // Délai pour "Payé"
+  delayAFacturerUnit String  @default("months") // Unité: days, weeks, months, years, quarters, semesters
+  delayFactureUnit   String  @default("months")
+  delayPayeUnit      String  @default("months")
+  columnNames        String? @db.VarChar(Max) // JSON string for column names
+}
+
+// ===================== PROJECTS =====================
+
+model Project {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique          // utilisé dans projectCode côté backend
+  label       String
+  taxProvince String?  // province par défaut pour ce projet
+
+  claims      Claim[]  // relation 1-N avec Claim
+}
+
+// ===================== TAX RATES =====================
+
+model TaxRate {
+  id       Int     @id @default(autoincrement())
+  province String  @unique          // utilisé par findUnique({ where: { province } })
+  rate     Float   @default(0)
+}
+
+// ===================== TEAM MEMBERS =====================
+
+model TeamMember {
+  id     Int     @id @default(autoincrement())
+  email  String  @unique
+  name   String?
+  role   String  @default("user")  // "admin" | "user" | "lecture"
+  active Boolean @default(true)
+}
+
+// ===================== CLAIMS =====================
+
+model Claim {
+  id           Int       @id @default(autoincrement())
+
+  type         String    // "milestone" | "dcr"
+  step         String?   // Étape (C228, etc.)
+
+  invoiceDate  DateTime? // Date de claim / facture
+  description  String?
+  province     String?
+  taxRate      Float     @default(0)
+
+  amountHT     Float     @default(0)
+  amountTTC    Float     @default(0)
+
+  invoiceNumber String?
+  status        String?  // "À facturer" | "Facturé" | "Approuvé" | "Payé" | "Annulé"
+
+  // Extras (colonnes C228..C231, NLT5, NLT6)
+  extraC228    Float?
+  extraC229    Float?
+  extraC230    Float?
+  extraC231    Float?
+  extraNLT5    Float?
+  extraNLT6    Float?
+
+  // Relation vers Project (optionnelle)
+  project    Project? @relation(fields: [projectId], references: [id])
+  projectId  Int?
+
+  // Fichiers liés à la claim (factures, PDF de claim, etc.)
+  files      ClaimFile[]
+
+  // 🔒 VERROU ANTI-DOUBLON
+  // (Désactivé comme dans la version locale pour compatibilité backup)
+  // @@unique([type, step, projectId])
+}
+
+// ===================== CLAIM FILES =====================
+
+model ClaimFile {
+  id         Int      @id @default(autoincrement())
+
+  claim      Claim    @relation(fields: [claimId], references: [id])
+  claimId    Int
+
+  name       String   // nom original
+  storedName String   // nom sur disque
+  size       Int
+  mimeType   String
+  category   String
+  url        String
+
+  uploadedAt DateTime @default(now())
+}

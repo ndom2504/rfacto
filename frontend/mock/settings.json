@@ -1,0 +1,15 @@
+{
+  "id": 1,
+  "contractHT": 0,
+  "contractTTC": 0,
+  "defaultProvMs": "QC",
+  "defaultProvDcr": "QC",
+  "defaultProvReserve": "QC",
+  "delayAFacturer": 1,
+  "delayAFacturerUnit": "month",
+  "delayFacture": 1,
+  "delayFactureUnit": "month",
+  "delayPaye": 1,
+  "delayPayeUnit": "month",
+  "columnNames": null
+}

@@ -1,0 +1,141 @@
+// =========================================================================
+// CONCEPTION: REGISTRE DE FACTURATION (Billing Register Design)
+// =========================================================================
+// Ce schéma représente la structure du registre de facturation.
+// La table centrale est "Claim" qui correspond à une ligne du registre.
+// =========================================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------
+// TABLE CENTRALE : LE REGISTRE DES LIGNES DE FACTURATION
+// ---------------------------------------------------------
+model Claim {
+  id           Int       @id @default(autoincrement()) // Numéro unique (interne)
+
+  // --- 1. Identification de la Ligne ---
+  type         String    // Type de ligne : "milestone" ou "dcr"
+  step         String?   // Identifiant Métier (ex: "DCR 001", "Jalon 2")
+
+  // --- 2. Lien Projet (Pour trier le registre par projet) ---
+  project      Project?  @relation(fields: [projectId], references: [id])
+  projectId    Int?      // Clé étrangère vers le projet (ex: P91893)
+
+  // --- 3. Description & Détails ---
+  description  String?   // Libellé de la prestation (ex: "Fondations...")
+  
+  // --- 4. Quantitatif & Financier (Colonnes Chiffrées) ---
+  amountHT     Float     @default(0) // Montant Hors Taxe
+  
+  // Taxes (Logique: Montant HT * Taux = Montant Taxe)
+  province     String?   // Province applicable (ex: "QC", "ON")
+  taxRate      Float     @default(0) // Taux au moment de la création (figé)
+  
+  // Total (Calculé: HT + Taxe)
+  amountTTC    Float     @default(0) // Montant Total Toutes Charges Comprises
+
+  // --- 5. Suivi de Facturation (Workflow) ---
+  status       String?   // État : "À facturer", "Facturé", "Approuvé", "Payé", "Annulé"
+  
+  invoiceNumber String?  // Numéro de la facture émise (ex: F2026-001)
+  invoiceDate   DateTime? // Date d'émission de la facture / Date de référence
+
+  // --- 6. Données Étendues (Colonnes Spécifiques / Extras) ---
+  // Ces colonnes permettent de garder la flexibilité d'un Excel
+  extraC228    Float?    // Extension personnalisée 1
+  extraC229    Float?    // Extension personnalisée 2
+  extraC230    Float?    // Extension personnalisée 3
+  extraC231    Float?    // Extension personnalisée 4
+  extraNLT5    Float?    // Extension NLT 5
+  extraNLT6    Float?    // Extension NLT 6
+
+  // --- 7. Pièces Justificatives (PJ) ---
+  files        ClaimFile[] // Lien vers les PDF/Documents attachés
+
+  @@index([status])      // Index pour filtrer rapidement par statut
+  @@index([projectId])   // Index pour filtrer par projet
+}
+
+// ---------------------------------------------------------
+// TABLES DE RÉFÉRENCE (Listes déroulantes du Registre)
+// ---------------------------------------------------------
+
+// Liste des Projets (Codes projets, Libellés)
+model Project {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique          // Code Projet (ex: P12345)
+  label       String                    // Nom du projet
+  taxProvince String?                   // Province par défaut du projet
+
+  claims      Claim[]                   // Un projet a plusieurs lignes de facturation
+}
+
+// Liste des Taxes (Référentiel des taux par province)
+model TaxRate {
+  id       Int     @id @default(autoincrement())
+  province String  @unique          // ex: "QC", "AB"
+  rate     Float   @default(0)      // ex: 14.975
+}
+
+// Paramètres Globaux du Registre
+model Settings {
+  id                 Int     @id
+  
+  // Données contractuelles globales
+  contractHT         Float   @default(0)
+  contractTTC        Float   @default(0)
+  contractNumber     String?
+
+  // Valeurs par défaut pour la saisie rapide
+  defaultProvMs      String?
+  defaultProvDcr     String?
+  defaultProvReserve String?
+  
+  processingTaxProv1 String? // Provinces de taxe par défaut pour Paiement claim
+  processingTaxProv2 String?
+  processingTaxProv3 String?
+
+  paymentClaimRowsJson String? @db.LongText // Configuration des lignes de paiement types
+  
+  delayAFacturer     Float   @default(1) // Délai pour "À facturer"
+  delayFacture       Float   @default(1) // Délai pour "Facturé"
+  delayPaye          Float   @default(1) // Délai pour "Payé"
+  delayAFacturerUnit String  @default("months") // Unité: days, weeks, months, years, quarters, semesters
+  delayFactureUnit   String  @default("months")
+  delayPayeUnit      String  @default("months")
+  
+  columnNames        String? @db.LongText // Noms personnalisés des colonnes (JSON)
+}
+
+model TeamMember {
+  id     Int     @id @default(autoincrement())
+  email  String  @unique
+  name   String?
+  role   String  @default("user")  // "admin" | "user" | "lecture"
+  active Boolean @default(true)
+}
+
+// Stockage des fichiers attachés aux lignes
+model ClaimFile {
+  id         Int      @id @default(autoincrement())
+
+  claim      Claim    @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  claimId    Int
+
+  name       String   // nom original
+  storedName String   // nom sur disque
+  size       Int
+  mimeType   String
+  category   String
+  url        String
+
+  uploadedAt DateTime @default(now())
+}

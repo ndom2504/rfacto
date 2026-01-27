@@ -1,0 +1,930 @@
+const milestones = [
+  {
+    "milestone": 1,
+    "description": "PDR ",
+    "nlt1": 439863.6,
+    "nlt2": 439863.6,
+    "nlt3": 439863.61,
+    "nlt4": 439863.61
+  },
+  {
+    "milestone": 2,
+    "description": "CDR ",
+    "nlt1": 879727.21,
+    "nlt2": 879727.21,
+    "nlt3": 879727.21,
+    "nlt4": 879727.21
+  },
+  {
+    "milestone": 3,
+    "description": "Financial Security ",
+    "nlt1": 131656.25,
+    "nlt2": 131656.25,
+    "nlt3": 131656.25,
+    "nlt4": 131656.25
+  },
+  {
+    "milestone": "4a",
+    "description": "PO one non-recurrent (steel) ",
+    "nlt1": 36125.12,
+    "nlt2": 36125.12,
+    "nlt3": 36125.13,
+    "nlt4": 36125.13
+  },
+  {
+    "milestone": "4.1b",
+    "description": "Balance delivery to subcontractor (steel)",
+    "nlt1": 2603056.5,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "4.2b",
+    "description": "Balance delivery to subcontractor (steel)",
+    "nlt1": NaN,
+    "nlt2": 2603056.5,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "4.3b",
+    "description": "Balance delivery to subcontractor (steel)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 2603056.5,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "4.4b",
+    "description": "Balance delivery to subcontractor (steel)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 2603056.5
+  },
+  {
+    "milestone": "5a",
+    "description": "PO one non-recurrent (propulsion) ",
+    "nlt1": 506009.87,
+    "nlt2": 506009.87,
+    "nlt3": 506009.87,
+    "nlt4": 506009.87
+  },
+  {
+    "milestone": "5.1b",
+    "description": "Propulsion Delivered ",
+    "nlt1": 1253444.55,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "5.2b",
+    "description": "Propulsion Delivered ",
+    "nlt1": NaN,
+    "nlt2": 1253444.55,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "5.3b",
+    "description": "Propulsion Delivered ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 1253444.55,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "5.4b",
+    "description": "Propulsion Delivered ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 1253444.55
+  },
+  {
+    "milestone": "6a",
+    "description": "PO one non-recurrent (electrical) ",
+    "nlt1": 442084.25,
+    "nlt2": 442084.25,
+    "nlt3": 442084.25,
+    "nlt4": 442084.25
+  },
+  {
+    "milestone": "6.1b",
+    "description": "Electrical Delivered ",
+    "nlt1": 877506.57,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "6.2b",
+    "description": "Electrical Delivered ",
+    "nlt1": NaN,
+    "nlt2": 877506.57,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "6.3b",
+    "description": "Electrical Delivered ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 877506.57,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "6.4b",
+    "description": "Electrical Delivered ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 877506.57
+  },
+  {
+    "milestone": 7.1,
+    "description": "Hull, deck, wheelhouse enclosed C228 NLT1",
+    "nlt1": 2199318.03,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": 7.2,
+    "description": "Hull, deck, wheelhouse enclosed C229 NLT2",
+    "nlt1": NaN,
+    "nlt2": 2199318.03,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "7.3a",
+    "description": "Deckhouse complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 329897.71,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "7.3b",
+    "description": "Hull enclosed and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 989693.11,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "7.3c",
+    "description": "Deckhouse and hull assembly complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 879727.21,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "7.4a",
+    "description": "Deckhouse complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 329897.71
+  },
+  {
+    "milestone": "7.4b",
+    "description": "Hull enclosed and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 989693.11
+  },
+  {
+    "milestone": "7.4c",
+    "description": "Deckhouse and hull assembly complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 879727.21
+  },
+  {
+    "milestone": "8.1a",
+    "description": "Prime Movers Installed ",
+    "nlt1": 879727.21,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "8.2a",
+    "description": "Prime Movers Installed ",
+    "nlt1": NaN,
+    "nlt2": 879727.21,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "8.3a",
+    "description": "Prime Movers Installed ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 879727.21,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "8.4a",
+    "description": "Prime Movers Installed ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 879727.21
+  },
+  {
+    "milestone": "8.1b",
+    "description": "Prime mover to Propulsor C228 NLT1",
+    "nlt1": 1319590.82,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "8.2b1",
+    "description": "All shaft components installed and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 527836.33,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "8.3b1",
+    "description": "All shaft components installed and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 527836.33,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "8.4b1",
+    "description": "All shaft components installed and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 527836.33
+  },
+  {
+    "milestone": "8.2b2",
+    "description": "Final alignment complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 791754.49,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "8.3b2",
+    "description": "Final alignment complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 791754.49,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "8.4b2",
+    "description": "Final alignment complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 791754.49
+  },
+  {
+    "milestone": "9.1a",
+    "description": "Test and Trials Program Complete and accepted by Canada (applicable for 4)",
+    "nlt1": 164948.85,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.2a",
+    "description": "Test and Trials Program Complete and accepted by Canada (applicable for 4)",
+    "nlt1": NaN,
+    "nlt2": 164948.85,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.3a",
+    "description": "Test and Trials Program Complete and accepted by Canada (applicable for 4)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 164948.85,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.4a",
+    "description": "Test and Trials Program Complete and accepted by Canada (applicable for 4)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 164948.85
+  },
+  {
+    "milestone": "9.1b",
+    "description": "Pre-Requisites Complete and accepted by Canada (Commissioning, Flushing, ITP)",
+    "nlt1": 329897.7,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.2b",
+    "description": "Pre-Requisites Complete and accepted by Canada (Commissioning, Flushing, ITP)",
+    "nlt1": NaN,
+    "nlt2": 329897.7,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.3b",
+    "description": "Pre-Requisites Complete and accepted by Canada (Commissioning, Flushing, ITP)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 329897.7,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.4b",
+    "description": "Pre-Requisites Complete and accepted by Canada (Commissioning, Flushing, ITP)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 329897.7
+  },
+  {
+    "milestone": "9.1c",
+    "description": "Trials Conduct Complete and accepted by Canada",
+    "nlt1": 1484539.67,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.2c",
+    "description": "Trials Conduct Complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 1484539.67,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.3c",
+    "description": "Trials Conduct Complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 1484539.67,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.4c",
+    "description": "Trials Conduct Complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 1484539.67
+  },
+  {
+    "milestone": "9.1d",
+    "description": "Trials Reports Submitted and accepted by Canada",
+    "nlt1": 659795.41,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.2d",
+    "description": "Trials Reports Submitted and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 659795.41,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.3d",
+    "description": "Trials Reports Submitted and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 659795.41,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.4d",
+    "description": "Trials Reports Submitted and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 659795.41
+  },
+  {
+    "milestone": "9.1e",
+    "description": "Trials Complete and Accepted by Canada",
+    "nlt1": 659795.41,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.2e",
+    "description": "Trials Complete and Accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 659795.41,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.3e",
+    "description": "Trials Complete and Accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 659795.41,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "9.4e",
+    "description": "Trials Complete and Accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 659795.41
+  },
+  {
+    "milestone": "10.1a",
+    "description": "CVM Template and accepted by Canada (applicable 4 tugs) ",
+    "nlt1": 109965.9,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "10.2a",
+    "description": "CVM Template and accepted by Canada (applicable 4 tugs) ",
+    "nlt1": NaN,
+    "nlt2": 109965.9,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "10.3a",
+    "description": "CVM Template and accepted by Canada (applicable 4 tugs) ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 109965.9,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "10.4a",
+    "description": "CVM Template and accepted by Canada (applicable 4 tugs) ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 109965.9
+  },
+  {
+    "milestone": "10.3b",
+    "description": "Provisional Acceptance complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 989693.11,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "10.4b",
+    "description": "Provisional Acceptance complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 989693.11
+  },
+  {
+    "milestone": "10.1b1",
+    "description": "Provisional Acceptance complete and accepted by Canada",
+    "nlt1": 494846.55,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "10.1b2",
+    "description": "Provisional Acceptance complete and accepted by Canada",
+    "nlt1": 494846.56,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "10.2b1",
+    "description": "Provisional Acceptance complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 494846.55,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "10.2b2",
+    "description": "Provisional Acceptance complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 494846.56,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": 11.1,
+    "description": "Delivery of Vessel to Base C228 NLT1",
+    "nlt1": 3298977.04,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": 11.2,
+    "description": "Delivery of Vessel to Base C229 NLT2",
+    "nlt1": NaN,
+    "nlt2": 3298977.04,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": 11.3,
+    "description": "Delivery of Vessel to Base C230 NLT3",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 3298977.04,
+    "nlt4": NaN
+  },
+  {
+    "milestone": 11.4,
+    "description": "Delivery of Vessel to Base C231 NLT4",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 3298977.04
+  },
+  {
+    "milestone": "12a",
+    "description": "PO one non-recurrent (spares) C228 NLT1 (V511)",
+    "nlt1": 87990.0,
+    "nlt2": 87990.0,
+    "nlt3": 87990.0,
+    "nlt4": 87990.0
+  },
+  {
+    "milestone": "12.1b1",
+    "description": "RSPL complete and accepted by Canada",
+    "nlt1": 70374.73,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.2b1",
+    "description": "RSPL complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 70374.73,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.3b1",
+    "description": "RSPL complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 70374.73,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.4b1",
+    "description": "RSPL complete and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 70374.73
+  },
+  {
+    "milestone": "12.1b2",
+    "description": "Spares verified by Canada at shipyard before shipping",
+    "nlt1": 140749.44,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.2b2",
+    "description": "Spares verified by Canada at shipyard before shipping",
+    "nlt1": NaN,
+    "nlt2": 140749.44,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.3b2",
+    "description": "Spares verified by Canada at shipyard before shipping",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 140749.44,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.4b2",
+    "description": "Spares verified by Canada at shipyard before shipping",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 140749.44
+  },
+  {
+    "milestone": "12.1b3",
+    "description": "Spares delivered and accepted by Canada",
+    "nlt1": 138124.44,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.2b3",
+    "description": "Spares delivered and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 138124.44,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.3b3",
+    "description": "Spares delivered and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 140749.44,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "12.4b3",
+    "description": "Spares delivered and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 140749.44
+  },
+  {
+    "milestone": "13.1a",
+    "description": "All copies of ILS documents (Draft)\nreceived and accepted by Canada\n(MEL, MAR, TDP, Hazardous Material\nDatabase)",
+    "nlt1": 65979.54,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "13.2a",
+    "description": "All copies of ILS documents (Draft)\nreceived and accepted by Canada\n(MEL, MAR, TDP, Hazardous Material\nDatabase)",
+    "nlt1": NaN,
+    "nlt2": 65979.54,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "13.3a",
+    "description": "All copies of ILS documents (Draft)\nreceived and accepted by Canada\n(MEL, MAR, TDP, Hazardous Material\nDatabase)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 65979.54,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "13.4a",
+    "description": "All copies of ILS documents (Draft)\nreceived and accepted by Canada\n(MEL, MAR, TDP, Hazardous Material\nDatabase)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 65979.54
+  },
+  {
+    "milestone": "13.1b",
+    "description": "All Technical Data Package elements\ndelivered and accepted by Canada",
+    "nlt1": 593815.87,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "13.2b",
+    "description": "All Technical Data Package elements\ndelivered and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 593815.87,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "13.3b",
+    "description": "All Technical Data Package elements\ndelivered and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 593815.87,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "13.4b",
+    "description": "All Technical Data Package elements\ndelivered and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 593815.87
+  },
+  {
+    "milestone": "14a",
+    "description": "PO one non-recurrent (training) C228 NLT1",
+    "nlt1": 3429.0,
+    "nlt2": 3429.0,
+    "nlt3": 3429.0,
+    "nlt4": 3429.0
+  },
+  {
+    "milestone": "14.1b1",
+    "description": "Training Plan including course manuals\ncomplete and accepted by Canada\n(applicable for 4 tugs)",
+    "nlt1": 196909.92,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "14.2b1",
+    "description": "Training Plan including course manuals\ncomplete and accepted by Canada\n(applicable for 4 tugs)",
+    "nlt1": NaN,
+    "nlt2": 196909.92,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "14.3b1",
+    "description": "Training Plan including course manuals\ncomplete and accepted by Canada\n(applicable for 4 tugs)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 196909.92,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "14.4b1",
+    "description": "Training Plan including course manuals\ncomplete and accepted by Canada\n(applicable for 4 tugs)",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 196909.92
+  },
+  {
+    "milestone": "14.1b2",
+    "description": "Training completed and accepted by Canada",
+    "nlt1": 459456.49,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "14.2b2",
+    "description": "Training completed and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": 459456.49,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "14.3b2",
+    "description": "Training completed and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 459456.49,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "14.4b2",
+    "description": "Training completed and accepted by Canada",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 459456.49
+  },
+  {
+    "milestone": "15.1",
+    "description": "Warranty ",
+    "nlt1": 879727.19,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "15.2",
+    "description": "Warranty ",
+    "nlt1": NaN,
+    "nlt2": 879727.19,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "15.3",
+    "description": "Warranty ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 879727.19,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "15.4",
+    "description": "Warranty ",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 879727.19
+  },
+  {
+    "milestone": "16 (a)",
+    "description": "APC",
+    "nlt1": 439863.6,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "16(b)",
+    "description": "APC",
+    "nlt1": NaN,
+    "nlt2": 439863.6,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": 17,
+    "description": "Economic Price Adjustment",
+    "nlt1": 2000000.0,
+    "nlt2": 2000000.0,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": 18,
+    "description": "EPA adjustment NLT 3 & 4",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 2000000.0,
+    "nlt4": 2000000.0
+  },
+  {
+    "milestone": "19.a",
+    "description": "Auxilairy Milestone - Delivery and Acceptance NLT 1",
+    "nlt1": 3000000.0,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "19.b",
+    "description": "Auxilairy Milestone - Delivery and Acceptance NLT 2",
+    "nlt1": NaN,
+    "nlt2": 3000000.0,
+    "nlt3": NaN,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "19.c",
+    "description": "Auxilairy Milestone - Completion Milestone 7 and all sub-milestones NLT 3",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 1400000.0,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "19.d",
+    "description": "Auxilairy Milestone - Completion Milestone 7 and all sub-milestones NLT 4",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 1400000.0
+  },
+  {
+    "milestone": "19.e",
+    "description": "Auxilairy Milestone - Delivery and Accepatnce NLT  3",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": 1600000.0,
+    "nlt4": NaN
+  },
+  {
+    "milestone": "19.f",
+    "description": "Auxilairy Milestone - Delivery and Accepatnce NLT  4",
+    "nlt1": NaN,
+    "nlt2": NaN,
+    "nlt3": NaN,
+    "nlt4": 1600000.0
+  },
+  {
+    "milestone": NaN,
+    "description": NaN,
+    "nlt1": 27342143.290000007,
+    "nlt2": 27342143.290000007,
+    "nlt3": 26904904.710000005,
+    "nlt4": 26904904.710000005
+  }
+];

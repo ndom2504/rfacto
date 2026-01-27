@@ -1,0 +1,4 @@
+[
+  { "id": 1, "code": "PRJ-001", "label": "Projet Démo 1", "taxProvince": "QC" },
+  { "id": 2, "code": "PRJ-002", "label": "Projet Démo 2", "taxProvince": "QC" }
+]

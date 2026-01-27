@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "step": "S1",
+    "type": "milestone",
+    "project": { "id": 1, "code": "PRJ-001" },
+    "date": "2025-12-01",
+    "description": "Livraison lot 1",
+    "province": "QC",
+    "taxRate": 0.14975,
+    "amountHT": 10000,
+    "amountTTC": 11497.5,
+    "invoiceNumber": "F-2025-001",
+    "status": "À facturer"
+  },
+  {
+    "id": 2,
+    "step": "DCR-12",
+    "type": "dcr",
+    "project": { "id": 2, "code": "PRJ-002" },
+    "date": "2025-12-05",
+    "description": "Travaux supplémentaires",
+    "province": "QC",
+    "taxRate": 0.14975,
+    "amountHT": 2500,
+    "amountTTC": 2874.38,
+    "invoiceNumber": "",
+    "status": "Brouillon"
+  }
+]

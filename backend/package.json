@@ -1,0 +1,33 @@
+{
+  "name": "rfacto-backend",
+  "version": "1.0.0",
+  "main": "src/server.cjs",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "dev": "node src/server.cjs",
+    "start": "node src/server.cjs",
+    "import:dcrs": "node scripts/importDcrs.js",
+    "backup": "node scripts/exportBackup.js",
+    "import:milestones": "node scripts/importMilestones.js",
+    "seed:taxes": "node scripts/seedTaxRates.js",
+    "update:dcrstatus": "node scripts/updateDcrStatus.js",
+    "add:dcrs-nlt3": "node scripts/addDcrsNlt3.js",
+    "import:dcrs-json": "node scripts/importDcrsFromJson.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.18.2",
+    "firebase-admin": "^13.6.0",
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^3.2.0",
+    "multer": "^1.4.5-lts.1",
+    "nanoid": "^5.0.7"
+  },
+  "devDependencies": {
+    "prisma": "^5.0.0"
+  }
+}

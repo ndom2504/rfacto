@@ -1,0 +1,58 @@
+          </thead>
+          <tbody id="paymentClaimBody">
+            ${displayRows
+              .map((r, i) => {
+                const datalistId = `pc-tax-dl-${i}`;
+                const typeLabel = (r.type || "").toUpperCase() || "MIL";
+                if (r.isTotal) {
+                  return `
+                <tr data-index="${i}" class="pc-total-row">
+                  <td><strong>${escapeHtml(r.description)}</strong></td>
+                  <td></td>
+                  <td></td>
+                  <td><strong>${formatMoney(r.amountHT)} $</strong></td>
+                  <td></td>
+                  <td><strong>${formatMoney(r.taxAmount)} $</strong></td>
+                  <td><strong>${formatMoney(r.totalToDate)} $</strong></td>
+                  <td>
+                    <button type="button" class="btn icon pc-delete" title="Supprimer">🗑</button>
+                  </td>
+                </tr>`;
+                }
+                return `
+                <tr data-index="${i}">
+                  <td>
+                    <div class="pc-desc-cell">
+                      <button type="button" class="btn secondary pc-type-toggle" title="Basculer Milestone/DCR">${escapeHtml(typeLabel)}</button>
+                      <input type="text" class="pc-input-desc" value="${escapeHtml(r.description)}" placeholder="Description (Milestone ou DCR)" />
+                    </div>
+                  </td>
+                  <td><input type="number" class="pc-input-num" min="1" value="${r.num ?? ''}" /></td>
+                  <td>
+                    <select class="pc-proj-select">${projectOptions(r.projectCode)}</select>
+                  </td>
+                  <td><input type="number" step="0.01" class="pc-input-ht" value="${Number(r.amountHT||0)}" /></td>
+                  <td>
+                    <div class="pc-tax-cell">
+                      <input type="text" class="pc-tax-input" list="${datalistId}" value="${escapeHtml(r.taxProvince || "")}" placeholder="Province" />
+                      <datalist id="${datalistId}">
+                        ${favoriteOptions(datalistId)}
+                        ${otherProvinces(datalistId)}
+                      </datalist>
+                      <span class="pc-tax-rate">${rateLabel(r.taxRate)}%</span>
+                    </div>
+                  </td>
+                  <td>${formatMoney(r.taxAmount)} $</td>
+                  <td>${formatMoney(r.totalToDate)} $</td>
+                  <td>
+                    <button type="button" class="btn icon pc-add-below" title="Ajouter en dessous">＋</button>
+                    <button type="button" class="btn icon pc-delete" title="Supprimer">🗑</button>
+                  </td>
+                </tr>`;
+              })
+              .join("")}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
