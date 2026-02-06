@@ -5,8 +5,11 @@
     <title>RfactO</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- Empêche la requête automatique /favicon.ico (utile en local avec http.server) -->
+    <link rel="icon" href="data:," />
+
     <!-- Styles principaux -->
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260127-1" />
 
     <!-- Librairies pour export ZIP & Excel (utilisées dans app.js) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -14,7 +17,7 @@
     
     <!-- MSAL.js pour authentification Azure AD -->
     <script src="https://alcdn.msauth.net/browser/2.38.1/js/msal-browser.min.js"></script>
-    <script src="auth.js?v=20260127-3"></script>
+    <script src="auth.js?v=20260203-1"></script>
   </head>
   <body>
     <!-- Écran de connexion (overlay) -->
@@ -684,6 +687,9 @@
             <div class="card">
               <div class="card-header">
                 <h3>Projets</h3>
+                <button id="btnImportMilestonesNLT56" class="btn small secondary" style="margin-left:auto;">
+                  Importer milestones NLT5/6
+                </button>
                 <button id="btnAddProject" class="btn small">
                   + Ajouter un projet
                 </button>
@@ -699,6 +705,34 @@
                     </tr>
                   </thead>
                   <tbody id="projBody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Amendements -->
+            <div class="card">
+              <div class="card-header" style="gap:12px; flex-wrap: wrap;">
+                <h3 style="margin-right:auto;">Amendements (avenants financiers)</h3>
+                <div class="form-field" style="min-width: 240px;">
+                  <label for="amendProjectSelect" class="muted" style="font-size:12px;">Projet</label>
+                  <select id="amendProjectSelect"></select>
+                </div>
+                <button id="btnAddAmendment" class="btn small">
+                  + Ajouter un amendement
+                </button>
+              </div>
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Numéro</th>
+                      <th>Désignation</th>
+                      <th>Montant HT</th>
+                      <th>Montant TTC</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="amendBody"></tbody>
                 </table>
               </div>
             </div>
@@ -734,14 +768,14 @@
                 </button>
               </div>
               <div class="table-wrapper">
-                <table class="data-table">
+                <table class="data-table team-members-table">
                   <thead>
                     <tr>
-                      <th>Email</th>
-                      <th>Nom</th>
-                      <th>Rôle</th>
-                      <th>Actif</th>
-                      <th></th>
+                      <th class="col-email">Email</th>
+                      <th class="col-name">Nom</th>
+                      <th class="col-role">Rôle</th>
+                      <th class="col-active">Actif</th>
+                      <th class="col-actions"></th>
                     </tr>
                   </thead>
                   <tbody id="teamBody"></tbody>
@@ -857,7 +891,19 @@
       </main>
     </div>
 
+    <!-- Authentification par mot de passe -->
+    <script src="rfacto-auth.js?v=20260205-1"></script>
+    <script>
+      // Vérifier l'authentification avant de charger l'app
+      if (!rfactoAuth.isAuthenticated()) {
+        console.warn('Non authentifié, redirection vers login...');
+        window.location.href = '/login.html';
+      } else {
+        console.log('✅ Authentifié avec token');
+      }
+    </script>
+
     <!-- JS principal -->
-    <script src="app.js?v=20260127-3"></script>
+    <script src="app.js?v=20260203-1"></script>
   </body>
 </html>

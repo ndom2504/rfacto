@@ -39,7 +39,10 @@ if (window.location.protocol === 'https:' && API_BASE.startsWith('http://')) {
 
 const apiParamRaw = new URLSearchParams(window.location.search).get('api');
 const apiParam = normalizeApiBase(apiParamRaw);
-if (apiParam) {
+// En production/Firebase: ne jamais permettre d'override API via URL (ça casse pour tous les utilisateurs)
+if (apiParam && isProdHost) {
+  console.warn('Paramètre ?api ignoré en production:', apiParamRaw);
+} else if (apiParam) {
   localStorage.setItem('rfacto_api_base', apiParam);
   API_BASE = apiParam;
 } else if (!isLocalHost && !isProdHost && savedApiBase) {
@@ -48,6 +51,11 @@ if (apiParam) {
 }
 // Mode mock (sans backend) : seulement en localhost + ?mock=1
 let USE_MOCK = isProdHost ? false : (isLocalHost && /[?&]mock=1/.test(window.location.search));
+
+// En local, le backend (port 4008) est permissif en mode dev. Par défaut on ne bloque pas l'app sur MSAL.
+// Pour forcer le comportement prod (auth obligatoire) en local: ajouter ?auth=1 à l'URL.
+const DEV_ALLOW_ANON = isLocalHost && !isProdHost;
+const DEV_FORCE_AUTH = /[?&]auth=1/.test(window.location.search);
 
 // Si ?mock=1 → activer explicitement
 if (/[?&]mock=1/.test(window.location.search)) {
@@ -78,29 +86,37 @@ window.paymentClaimState = paymentClaimState;
 
 // === AUTH VÉRIFICATION ==============================================
 async function checkAuth() {
-  if (typeof msalAuth === 'undefined') {
-    console.error('Client d\'authentification non chargé');
-    return false;
-  }
+  // NOUVEAU: Système de mot de passe simple
+  // La vérification est faite dans index.html via rfactoAuth.requireAuth()
   
-  const isAuth = await msalAuth.isAuthenticated();
-  if (!isAuth) {
-    // Afficher l'overlay de connexion au lieu de rediriger
-    showLoginOverlay();
-    return false;
-  }
+  // Si on arrive ici, c'est qu'on a un token (sinon redirection vers login.html)
+  const token = localStorage.getItem('rfacto_auth_token');
   
-  // Récupérer les infos utilisateur
-  const userInfo = msalAuth.getUserInfo();
-  if (userInfo) {
+  if (token) {
+    // Utilisateur authentifié avec le système simple
     state.currentUser = {
-      email: userInfo.email,
-      name: userInfo.name,
-      role: USE_MOCK ? 'lecture' : 'user' // mock = lecture seule
+      email: 'user@rfacto.com',
+      name: 'Utilisateur',
+      role: 'admin'  // Tout le monde est admin avec le mot de passe unique
     };
+    hideLoginOverlay();
+    console.log('✅ Authentifié avec token simple');
+    return true;
   }
-  
-  // Cacher l'overlay et afficher l'app
+
+  // Pas de token → redirection vers login (normalement déjà fait dans index.html)
+  console.warn('Pas de token, redirection vers login...');
+  if (isProdHost || !DEV_ALLOW_ANON) {
+    window.location.href = '/login.html';
+    return false;
+  }
+
+  // En dev local uniquement: mode permissif
+  state.currentUser = {
+    email: 'local-dev@rfacto.test',
+    name: 'Dev User',
+    role: USE_MOCK ? 'lecture' : 'admin'
+  };
   hideLoginOverlay();
   return true;
 }
@@ -141,51 +157,17 @@ async function handleLogout() {
     return;
   }
   
-  try {
-    // Déconnexion MSAL
-    await msalAuth.logout();
-  } catch (error) {
-    console.warn('Erreur lors de la déconnexion MSAL:', error);
-  }
+  // Supprimer le token
+  localStorage.removeItem('rfacto_auth_token');
+  localStorage.removeItem('rfacto_auth_timestamp');
   
-  // Nettoyer tout le localStorage et sessionStorage
-  localStorage.clear();
-  sessionStorage.clear();
-  
-  // Recharger la page pour revenir à l'overlay de connexion
-  window.location.href = window.location.pathname;
+  // Rediriger vers la page de login
+  window.location.href = '/login.html';
 }
 
 async function handleLogin() {
-  const btn = document.getElementById('loginBtn');
-  const errorDiv = document.getElementById('loginError');
-  const loadingDiv = document.getElementById('loginLoading');
-  
-  // Attendre que MSAL soit complètement initialisé
-  if (!msalReady) {
-    console.log('MSAL pas encore prêt, attente...');
-    return;
-  }
-  
-  if (btn) btn.disabled = true;
-  if (errorDiv) {
-    errorDiv.textContent = '';
-    errorDiv.style.display = 'none';
-  }
-  if (loadingDiv) loadingDiv.style.display = 'block';
-  
-  try {
-    await msalAuth.loginRedirect();
-    // La redirection va recharger la page, pas besoin de code après
-  } catch (error) {
-    console.error('Erreur de connexion:', error);
-    if (errorDiv) {
-      errorDiv.textContent = 'Erreur de connexion. Veuillez réessayer.';
-      errorDiv.style.display = 'block';
-    }
-    if (btn) btn.disabled = false;
-    if (loadingDiv) loadingDiv.style.display = 'none';
-  }
+  // Rediriger vers la page de login
+  window.location.href = '/login.html';
 }
 
 // --- Helpers HTTP avec authentification -----------------------------
@@ -197,55 +179,30 @@ async function getAuthHeaders() {
     return { 'Content-Type': 'application/json' };
   }
 
-  // En dev sans MSAL, renvoyer un header SANS email pour utiliser admin local backend
-  if (!msalAuth || typeof msalAuth.getAccessToken !== 'function') {
-    console.debug('MSAL non disponible, fallback admin local backend');
+  // NOUVEAU: Système de mot de passe simple via rfactoAuth
+  const token = localStorage.getItem('rfacto_auth_token');
+  
+  if (token) {
     return {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'X-API-Token': token
     };
   }
 
-  // Tenter de récupérer un token Azure; si ça échoue, retourner sans Authorization
-  try {
-    if (!tokenAcquisitionPromise) {
-      tokenAcquisitionPromise = (async () => {
-        const token = await msalAuth.getAccessToken();
-        return token;
-      })().finally(() => {
-        tokenAcquisitionPromise = null;
-      });
-    }
-
-    const token = await tokenAcquisitionPromise;
-    
-    if (token) {
-      console.log('🔑 Token acquis, longueur:', token.length, 'Premiers chars:', token.substring(0, 50) + '...');
-      return {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'x-rfacto-user-email': state.currentUser?.email || ''
-      };
-    }
-    
-    // Token est null (probablement MFA en cours de redirect)
-    // Retourner des headers basiques sans Authorization
-    console.debug('Token null (MFA redirect en cours?)');
-    return {
-      'Content-Type': 'application/json',
-      'x-rfacto-user-email': state.currentUser?.email || ''
-    };
-  } catch (tokenErr) {
-
-    // ✅ En production, ne pas masquer l'erreur avec un fallback
-    console.warn('Token acquisition échouée:', tokenErr);
-    
-    // Si on est en mode développement local, continuer sans token
-    // Sinon, retourner headers sans Authorization (le backend répondra 401)
-    return {
-      'Content-Type': 'application/json',
-      'x-rfacto-user-email': state.currentUser?.email || ''
-    };
+  // Pas de token → pas authentifié
+  console.warn('Pas de token d\'authentification');
+  
+  // En production, rediriger vers login
+  if (isProdHost) {
+    console.warn('Non authentifié, redirection vers login...');
+    window.location.href = '/login.html';
+    throw new Error('Non authentifié');
   }
+
+  // En dev local sans token, essayer quand même (backend peut être permissif)
+  return {
+    'Content-Type': 'application/json'
+  };
 }
 
 async function fetchMock(path) {
@@ -279,17 +236,15 @@ async function apiGet(path) {
   try {
     const res = await fetch(API_BASE + path, { headers });
     if (res.status === 401) {
-      // Fallback 401: essayer sans aucun header sauf Content-Type (mode dev du backend)
-      console.warn('401 reçu, essai en fallback dev (sans Authorization)');
-      const devHeaders = { 'Content-Type': 'application/json' };
-      const retryRes = await fetch(API_BASE + path, { headers: devHeaders });
-      if (retryRes.ok) {
-        console.log('Fallback dev réussi pour', path);
-        return retryRes.json();
+      // Token invalide ou expiré → rediriger vers login
+      console.warn('401 reçu sur', path, '- token invalide ou expiré');
+      localStorage.removeItem('rfacto_auth_token');
+      localStorage.removeItem('rfacto_auth_timestamp');
+      
+      if (isProdHost || !DEV_ALLOW_ANON) {
+        window.location.href = '/login.html';
       }
-      // Si le fallback échoue aussi, montrer l'overlay
-      console.warn('Non authentifié (même en fallback dev)');
-      showLoginOverlay();
+      
       throw new Error('Non authentifié');
     }
     if (!res.ok) throw new Error("GET " + path + " -> " + res.status);
@@ -359,10 +314,10 @@ function renderFiltersProjects() {
   // Remplir le filtre Registre
   const selReg = document.getElementById('filterRegProjet');
   if (selReg) {
-    const currentReg = selReg.value || '';
+    const currentReg = selReg.value || 'all';
     selReg.innerHTML = '';
     const optAllReg = document.createElement('option');
-    optAllReg.value = '';
+    optAllReg.value = 'all';
     optAllReg.textContent = 'Tous';
     selReg.appendChild(optAllReg);
     (state.projects || []).forEach(p => {
@@ -371,7 +326,8 @@ function renderFiltersProjects() {
       o.textContent = p.code;
       selReg.appendChild(o);
     });
-    if (currentReg) selReg.value = currentReg;
+    // Restaurer la valeur précédente ou défaut à 'all'
+    selReg.value = currentReg === '' ? 'all' : currentReg;
   }
   
   // Remplir le filtre Bilan
@@ -464,7 +420,10 @@ async function apiPost(path, body) {
     showLoginOverlay();
     throw new Error('Non authentifié');
   }
-  if (!res.ok) throw new Error("POST " + path + " -> " + res.status);
+  if (!res.ok) {
+    const details = await res.text().catch(() => '');
+    throw new Error(`POST ${path} -> ${res.status}${details ? ` | ${details}` : ''}`);
+  }
   return res.json();
 }
 
@@ -483,7 +442,10 @@ async function apiPut(path, body) {
     showLoginOverlay();
     throw new Error('Non authentifié');
   }
-  if (!res.ok) throw new Error("PUT " + path + " -> " + res.status);
+  if (!res.ok) {
+    const details = await res.text().catch(() => '');
+    throw new Error(`PUT ${path} -> ${res.status}${details ? ` | ${details}` : ''}`);
+  }
   return res.json();
 }
 
@@ -501,7 +463,10 @@ async function apiDelete(path) {
     showLoginOverlay();
     throw new Error('Non authentifié');
   }
-  if (!res.ok) throw new Error("DELETE " + path + " -> " + res.status);
+  if (!res.ok) {
+    const details = await res.text().catch(() => '');
+    throw new Error(`DELETE ${path} -> ${res.status}${details ? ` | ${details}` : ''}`);
+  }
   return res.json();
 }
 
@@ -510,6 +475,8 @@ const state = {
   projects: [],
   taxes: [],
   settings: null,
+  amendments: [],
+  selectedAmendmentProjectId: null,
   claims: [],
   teamMembers: [],
   currentUser: null,
@@ -2070,8 +2037,7 @@ function renderRegistre() {
       inputStep.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
           // Force le save immédiat
-          clearTimeout(claimSaveTimers.get(c.id));
-          scheduleSaveClaim(c.id, () => ({ step: c.step }));
+          scheduleSaveClaim(c.id, () => ({ step: c.step }), { immediate: true });
         }
       });
     } else inputStep.disabled = true;
@@ -2091,7 +2057,8 @@ function renderRegistre() {
     if (!isReadOnly()) {
       selType.addEventListener("change", () => {
         c.type = selType.value;
-        scheduleSaveClaim(c.id, () => ({ type: c.type }));
+        // Changement discret: sauvegarde immédiate
+        scheduleSaveClaim(c.id, () => ({ type: c.type }), { immediate: true });
       });
     } else selType.disabled = true;
     tdType.appendChild(selType);
@@ -2113,10 +2080,15 @@ function renderRegistre() {
         const selectedProject = state.projects.find(p => p.code === selectedCode);
         c.project = selectedProject ? { id: selectedProject.id, code: selectedProject.code } : null;
         c.projectCode = selectedCode;
-        scheduleSaveClaim(c.id, () => ({ 
-          projectCode: selectedCode,
-          project: c.project 
-        }));
+        // Changement discret: sauvegarde immédiate
+        scheduleSaveClaim(
+          c.id,
+          () => ({
+            projectCode: selectedCode,
+            project: c.project
+          }),
+          { immediate: true }
+        );
       });
     } else selProj.disabled = true;
     tdProj.appendChild(selProj);
@@ -2128,14 +2100,18 @@ function renderRegistre() {
     inputDate.type = "date";
     inputDate.value = c.invoiceDate ? c.invoiceDate.slice(0, 10) : "";
     if (!isReadOnly()) {
-      inputDate.addEventListener("input", () => {
+      const applyInvoiceDate = () => {
         c.invoiceDate = inputDate.value ? new Date(inputDate.value).toISOString() : null;
-        scheduleSaveClaim(c.id, () => ({ invoiceDate: c.invoiceDate }));
+      };
+      // Date = changement discret -> sauvegarde immédiate
+      inputDate.addEventListener("change", () => {
+        applyInvoiceDate();
+        scheduleSaveClaim(c.id, () => ({ invoiceDate: c.invoiceDate }), { immediate: true });
       });
       inputDate.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          clearTimeout(claimSaveTimers.get(c.id));
-          scheduleSaveClaim(c.id, () => ({ invoiceDate: c.invoiceDate }));
+          applyInvoiceDate();
+          scheduleSaveClaim(c.id, () => ({ invoiceDate: c.invoiceDate }), { immediate: true });
         }
       });
     } else inputDate.disabled = true;
@@ -2154,8 +2130,7 @@ function renderRegistre() {
       });
       inputDesc.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          clearTimeout(claimSaveTimers.get(c.id));
-          scheduleSaveClaim(c.id, () => ({ description: c.description }));
+          scheduleSaveClaim(c.id, () => ({ description: c.description }), { immediate: true });
         }
       });
     } else inputDesc.disabled = true;
@@ -2190,11 +2165,16 @@ function renderRegistre() {
         // Autosave province + taxRate
         c.province = selectedProv;
         c.taxRate = ratePercent / 100;
-        scheduleSaveClaim(c.id, () => ({ 
-          province: c.province,
-          taxRate: c.taxRate,
-          amountTTC: ht * (1 + c.taxRate)
-        }));
+        // Changement discret: sauvegarde immédiate
+        scheduleSaveClaim(
+          c.id,
+          () => ({
+            province: c.province,
+            taxRate: c.taxRate,
+            amountTTC: ht * (1 + c.taxRate)
+          }),
+          { immediate: true }
+        );
       });
     } else selProv.disabled = true;
     tdProv.appendChild(selProv);
@@ -2223,11 +2203,14 @@ function renderRegistre() {
       });
       inputTax.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          clearTimeout(claimSaveTimers.get(c.id));
-          scheduleSaveClaim(c.id, () => ({
-            taxRate: c.taxRate,
-            amountTTC: c.amountTTC
-          }));
+          scheduleSaveClaim(
+            c.id,
+            () => ({
+              taxRate: c.taxRate,
+              amountTTC: c.amountTTC
+            }),
+            { immediate: true }
+          );
         }
       });
     } else inputTax.disabled = true;
@@ -2271,19 +2254,25 @@ function renderRegistre() {
         c.amountTTC = newTtc;
         tdTtc.textContent = formatMoney(newTtc) + " $";
         // Force le save immédiat
-        clearTimeout(claimSaveTimers.get(c.id));
-        scheduleSaveClaim(c.id, () => ({
-          amountHT: c.amountHT,
-          amountTTC: c.amountTTC
-        }));
+        scheduleSaveClaim(
+          c.id,
+          () => ({
+            amountHT: c.amountHT,
+            amountTTC: c.amountTTC
+          }),
+          { immediate: true }
+        );
       });
       inputHt.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          clearTimeout(claimSaveTimers.get(c.id));
-          scheduleSaveClaim(c.id, () => ({
-            amountHT: c.amountHT,
-            amountTTC: c.amountTTC
-          }));
+          scheduleSaveClaim(
+            c.id,
+            () => ({
+              amountHT: c.amountHT,
+              amountTTC: c.amountTTC
+            }),
+            { immediate: true }
+          );
         }
       });
     } else inputHt.disabled = true;
@@ -2306,10 +2295,13 @@ function renderRegistre() {
         c.invoiceNumber = inputNo.value;
         scheduleSaveClaim(c.id, () => ({ invoiceNumber: c.invoiceNumber }));
       });
+      inputNo.addEventListener("blur", () => {
+        c.invoiceNumber = inputNo.value;
+        scheduleSaveClaim(c.id, () => ({ invoiceNumber: c.invoiceNumber }), { immediate: true });
+      });
       inputNo.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
-          clearTimeout(claimSaveTimers.get(c.id));
-          scheduleSaveClaim(c.id, () => ({ invoiceNumber: c.invoiceNumber }));
+          scheduleSaveClaim(c.id, () => ({ invoiceNumber: c.invoiceNumber }), { immediate: true });
         }
       });
     } else inputNo.disabled = true;
@@ -2331,7 +2323,8 @@ function renderRegistre() {
     if (!isReadOnly()) {
       selStatus.addEventListener("change", () => {
         c.status = selStatus.value || null;
-        scheduleSaveClaim(c.id, () => ({ status: c.status }));
+        // Changement discret: sauvegarde immédiate
+        scheduleSaveClaim(c.id, () => ({ status: c.status }), { immediate: true });
       });
     } else selStatus.disabled = true;
     tdStatus.appendChild(selStatus);
@@ -2354,6 +2347,10 @@ function renderRegistre() {
     btnDel.textContent = "🗑";
     btnDel.title = "Supprimer";
 
+    const saveInd = document.createElement("span");
+    saveInd.id = `save-indicator-${c.id}`;
+    saveInd.style.cssText = 'display:inline-block;min-width:16px;margin-left:6px;opacity:0.9;';
+
     if (!isReadOnly()) {
       btnInsert.addEventListener("click", () => insertClaimBelow(c.id));
       btnDel.addEventListener("click", () => deleteClaim(c.id));
@@ -2367,7 +2364,11 @@ function renderRegistre() {
     tdAct.appendChild(btnInsert);
     tdAct.appendChild(btnView);
     tdAct.appendChild(btnDel);
+    tdAct.appendChild(saveInd);
     tr.appendChild(tdAct);
+
+    // Initialiser l'indicateur selon l'état actuel
+    updateClaimSaveIndicator(c.id);
 
     // Effet lumineux + click-to-lock
     attachRowGlow(tr);
@@ -2404,6 +2405,9 @@ function renderRegistreHeader() {
 
 async function insertClaimBelow(refId) {
   try {
+    // Éviter d'écraser des modifications locales non encore persistées
+    await flushPendingClaimSaves();
+
     const refIndex = state.claims.findIndex((c) => c.id === refId);
     const ref = state.claims[refIndex];
     if (!ref) return;
@@ -2477,6 +2481,16 @@ async function deleteClaim(id) {
   }
 }
 
+function openClaimArchive(claimId) {
+  // Basculer vers l'onglet Archive
+  showTab("archive");
+  // Sélectionner la claim
+  state.archiveSelectedClaimId = claimId;
+  // Re-rendre l'archive avec la claim sélectionnée
+  renderArchive();
+  renderArchiveDetail();
+}
+
 async function addClaim() {
   try {
     const firstProject = state.projects[0]?.code || null;
@@ -2542,7 +2556,8 @@ function renderRegistreSummary(claimsList) {
   // sans être biaisé par un filtre statut/recherche/date. On ne garde
   // que les filtres Type / Projet pour le calcul.
   const typeFilter = document.getElementById("filterRegType")?.value || "all";
-  const projFilter = document.getElementById("filterRegProjet")?.value || "all";
+  const projFilterRaw = document.getElementById("filterRegProjet")?.value;
+  const projFilter = (projFilterRaw === '' || !projFilterRaw) ? "all" : projFilterRaw;
 
   // Base : toutes les claims, restreintes éventuellement par type/projet
   const baseClaims = (state.claims || []).filter((c) => {
@@ -2582,6 +2597,7 @@ function renderRegistreSummary(claimsList) {
     });
 
     // Calcul du pourcentage de progression (facturé / total actif)
+    // Si totalActif = 0 mais qu'il y a des claims, ça peut être des claims 'Brouillon' ou autre
     const progression = totalActif > 0 ? (totalFacture / totalActif) * 100 : 0;
     
     // Totaux par type (milestone vs DCR)
@@ -4315,8 +4331,8 @@ function renderProjects() {
 
   tbody.querySelectorAll("input, select").forEach((el) => {
     el.addEventListener("change", async () => {
-      if (isReadOnly()) {
-        alert("Mode lecture seule : modification des projets non autorisée.");
+      if (isSettingsReadOnly()) {
+        alert("Seuls les administrateurs peuvent modifier les projets.");
         return;
       }
       const idx = Number(el.getAttribute("data-idx"));
@@ -4351,8 +4367,8 @@ function renderProjects() {
 
   tbody.querySelectorAll("button.mini-btn.danger").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      if (isReadOnly()) {
-        alert("Mode lecture seule : suppression des projets non autorisée.");
+      if (isSettingsReadOnly()) {
+        alert("Seuls les administrateurs peuvent supprimer des projets.");
         return;
       }
       const idx = Number(btn.getAttribute("data-idx"));
@@ -4390,8 +4406,8 @@ function renderTaxes() {
 
   tbody.querySelectorAll("input").forEach((input) => {
     input.addEventListener("change", async () => {
-      if (isReadOnly()) {
-        alert("Mode lecture seule : modification des taxes non autorisée.");
+      if (isSettingsReadOnly()) {
+        alert("Seuls les administrateurs peuvent modifier les taxes.");
         return;
       }
       const idx = Number(input.getAttribute("data-idx"));
@@ -4420,8 +4436,8 @@ function renderTaxes() {
 
   tbody.querySelectorAll("button").forEach((btn) => {
     btn.addEventListener("click", async () => {
-      if (isReadOnly()) {
-        alert("Mode lecture seule : suppression des taxes non autorisée.");
+      if (isSettingsReadOnly()) {
+        alert("Seuls les administrateurs peuvent supprimer des taxes.");
         return;
       }
       const idx = Number(btn.getAttribute("data-idx"));
@@ -4452,8 +4468,179 @@ function renderTaxes() {
   });
 }
 
+function renderAmendments() {
+  const projectSelect = document.getElementById("amendProjectSelect");
+  const tbody = document.getElementById("amendBody");
+  if (!projectSelect || !tbody) return;
+
+  const projects = Array.isArray(state.projects) ? state.projects : [];
+  const amendments = Array.isArray(state.amendments) ? state.amendments : [];
+
+  // Populate projects select
+  projectSelect.innerHTML = "";
+  projects.forEach((p) => {
+    const opt = document.createElement("option");
+    opt.value = String(p.id);
+    opt.textContent = `${p.code} - ${p.label}`;
+    projectSelect.appendChild(opt);
+  });
+
+  const currentId =
+    state.selectedAmendmentProjectId != null
+      ? String(state.selectedAmendmentProjectId)
+      : (projects[0] ? String(projects[0].id) : "");
+  if (currentId) {
+    projectSelect.value = currentId;
+    state.selectedAmendmentProjectId = Number(currentId);
+  }
+
+  const selectedProjectId = Number(projectSelect.value) || null;
+  tbody.innerHTML = "";
+
+  const rows = selectedProjectId
+    ? amendments
+        .filter((a) => Number(a.projectId) === selectedProjectId)
+        .slice()
+        .sort((a, b) => String(a.numero || "").localeCompare(String(b.numero || "")))
+    : [];
+
+  rows.forEach((a, idx) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td><input type="text" value="' +
+      (a.numero || "") +
+      '" data-id="' +
+      a.id +
+      '" data-field="numero" /></td>' +
+      '<td><input type="text" value="' +
+      (a.designation || "") +
+      '" data-id="' +
+      a.id +
+      '" data-field="designation" /></td>' +
+      '<td><input type="number" step="0.01" value="' +
+      (Number(a.amountHT) || 0) +
+      '" data-id="' +
+      a.id +
+      '" data-field="amountHT" /></td>' +
+      '<td><input type="number" step="0.01" value="' +
+      (Number(a.amountTTC) || 0) +
+      '" data-id="' +
+      a.id +
+      '" data-field="amountTTC" /></td>' +
+      '<td><button class="mini-btn danger" data-id="' +
+      a.id +
+      '">Supprimer</button></td>';
+    tbody.appendChild(tr);
+  });
+
+  // Change project selection
+  projectSelect.onchange = () => {
+    state.selectedAmendmentProjectId = Number(projectSelect.value) || null;
+    renderAmendments();
+  };
+
+  // Inline update
+  tbody.querySelectorAll("input").forEach((input) => {
+    input.addEventListener("change", async () => {
+      if (isSettingsReadOnly()) {
+        alert("Seuls les administrateurs peuvent modifier les amendements.");
+        return;
+      }
+      const id = Number(input.getAttribute("data-id"));
+      const field = input.getAttribute("data-field");
+      const amend = (state.amendments || []).find((x) => Number(x.id) === id);
+      if (!amend) return;
+      const body = {
+        numero: amend.numero,
+        designation: amend.designation,
+        amountHT: amend.amountHT,
+        amountTTC: amend.amountTTC,
+      };
+      if (field === "numero") body.numero = input.value;
+      else if (field === "designation") body.designation = input.value;
+      else if (field === "amountHT") body.amountHT = Number(input.value) || 0;
+      else if (field === "amountTTC") body.amountTTC = Number(input.value) || 0;
+
+      try {
+        const updated = await apiPut("/amendments/" + id, body);
+        const idx = state.amendments.findIndex((x) => Number(x.id) === id);
+        if (idx >= 0) state.amendments[idx] = updated;
+        renderAmendments();
+      } catch (e) {
+        console.error(e);
+        alert("Erreur lors de la mise à jour de l'amendement : " + (e.message || ""));
+      }
+    });
+  });
+
+  // Delete
+  tbody.querySelectorAll("button.mini-btn.danger").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (isSettingsReadOnly()) {
+        alert("Seuls les administrateurs peuvent supprimer des amendements.");
+        return;
+      }
+      const id = Number(btn.getAttribute("data-id"));
+      if (!id) return;
+      if (!confirm("Supprimer cet amendement ?")) return;
+      try {
+        await apiDelete("/amendments/" + id);
+        state.amendments = (state.amendments || []).filter((x) => Number(x.id) !== id);
+        renderAmendments();
+      } catch (e) {
+        console.error(e);
+        alert("Erreur lors de la suppression : " + (e.message || ""));
+      }
+    });
+  });
+
+  // Add
+  const addBtn = document.getElementById("btnAddAmendment");
+  if (addBtn) {
+    addBtn.onclick = async () => {
+      if (isSettingsReadOnly()) {
+        alert("Seuls les administrateurs peuvent ajouter des amendements.");
+        return;
+      }
+      const pid = Number(projectSelect.value) || null;
+      if (!pid) {
+        alert("Choisissez un projet.");
+        return;
+      }
+
+      const existing = new Set(
+        amendments
+          .filter((x) => Number(x.projectId) === pid)
+          .map((x) => String(x.numero || "").trim())
+          .filter(Boolean)
+      );
+      let i = existing.size + 1;
+      let numero = "A" + String(i).padStart(2, "0");
+      while (existing.has(numero)) {
+        i++;
+        numero = "A" + String(i).padStart(2, "0");
+      }
+
+      try {
+        const created = await apiPost("/amendments", {
+          projectId: pid,
+          numero,
+          designation: "Nouvel amendement",
+          amountHT: 0,
+          amountTTC: 0,
+        });
+        state.amendments.push(created);
+        renderAmendments();
+      } catch (e) {
+        console.error(e);
+        alert("Erreur lors de la création de l'amendement : " + (e.message || ""));
+      }
+    };
+  }
+}
+
 async function saveSettings() {
-  if (isReadOnly()) return;
+  if (isSettingsReadOnly()) return;
   const envNum = document.getElementById("envContratNumero")?.value || "";
   const envHt = Number(
     document.getElementById("envContratHt")?.value || 0
@@ -4603,6 +4790,10 @@ function isReadOnly() {
   return USE_MOCK || (state.currentUser?.role === 'lecture');
 }
 
+function isSettingsReadOnly() {
+  return USE_MOCK || (state.currentUser?.role !== 'admin');
+}
+
 function getRegistreFilteredClaims() {
   const typeFilter = document.getElementById("filterRegType")?.value || "all";
   const projFilter = document.getElementById("filterRegProjet")?.value || "all";
@@ -4692,6 +4883,112 @@ function parseMoney(str) {
 // Système d'autosave avec debounce
 const claimSaveTimers = new Map(); // claimId -> timeoutId
 const claimSaveStatus = new Map(); // claimId -> "saving" | "saved" | "error"
+const claimPendingBuilders = new Map(); // claimId -> () => patch
+const claimSaveInFlight = new Map(); // claimId -> Promise
+const claimSaveErrorMsg = new Map(); // claimId -> string
+
+function updateClaimSaveIndicator(claimId) {
+  const el = document.getElementById(`save-indicator-${claimId}`);
+  if (!el) return;
+  const status = claimSaveStatus.get(claimId);
+  if (status === 'saving') {
+    el.textContent = '⏳';
+    el.title = 'Sauvegarde en cours…';
+  } else if (status === 'saved') {
+    el.textContent = '✓';
+    el.title = 'Sauvegardé';
+  } else if (status === 'error') {
+    el.textContent = '⚠';
+    el.title = claimSaveErrorMsg.get(claimId) || 'Erreur de sauvegarde';
+  } else {
+    el.textContent = '';
+    el.title = '';
+  }
+}
+
+async function verifyClaimPersistedOnServer(claimId, patch) {
+  // Vérification légère: si le backend renvoie des anciennes valeurs après un PUT,
+  // on le signale clairement (sinon ça ressemble à un bug "mémoire" côté front).
+  if (USE_MOCK) return;
+  if (!isProdHost) return; // éviter de spammer en dev
+  if (!patch || typeof patch !== 'object') return;
+
+  const fieldsToCheck = Object.keys(patch).filter((k) => {
+    // On vérifie surtout les champs qui posent problème en refresh
+    return [
+      'status',
+      'invoiceNumber',
+      'invoiceDate',
+      'type',
+      'projectCode',
+      'province',
+      'taxRate',
+      'amountHT',
+      'amountTTC'
+    ].includes(k);
+  });
+  if (!fieldsToCheck.length) return;
+
+  // Petite attente pour laisser le backend/DB finir
+  await new Promise((r) => setTimeout(r, 300));
+
+  let serverClaims;
+  try {
+    serverClaims = await apiGet('/claims');
+  } catch (e) {
+    // Si on ne peut pas relire, ne pas bloquer l'expérience
+    console.warn('[verifyClaimPersistedOnServer] Impossible de relire /claims:', e?.message || e);
+    return;
+  }
+
+  const serverClaim = (serverClaims || []).find((c) => c && c.id === claimId);
+  if (!serverClaim) return;
+
+  const mismatches = [];
+  for (const k of fieldsToCheck) {
+    const expected = patch[k];
+    const actual = serverClaim[k];
+    // Comparaisons tolérantes (dates ISO)
+    if (k === 'invoiceDate') {
+      const exp = expected ? String(expected).slice(0, 10) : '';
+      const act = actual ? String(actual).slice(0, 10) : '';
+      if (exp !== act) mismatches.push(`${k}: attendu ${exp || '∅'}, reçu ${act || '∅'}`);
+      continue;
+    }
+    if (typeof expected === 'number') {
+      const expN = Number(expected);
+      const actN = Number(actual);
+      if (Number.isFinite(expN) && Number.isFinite(actN)) {
+        if (Math.abs(expN - actN) > 0.000001) mismatches.push(`${k}: attendu ${expN}, reçu ${actN}`);
+        continue;
+      }
+    }
+    if ((expected ?? null) !== (actual ?? null)) {
+      mismatches.push(`${k}: attendu ${expected ?? '∅'}, reçu ${actual ?? '∅'}`);
+    }
+  }
+
+  if (mismatches.length) {
+    const msg = `Backend n'a pas persisté la modification (refresh revient en arrière).\n${mismatches.join(' | ')}`;
+    console.error('[verifyClaimPersistedOnServer] ' + msg);
+    claimSaveStatus.set(claimId, 'error');
+    claimSaveErrorMsg.set(claimId, msg);
+    updateClaimSaveIndicator(claimId);
+  }
+}
+
+function hasPendingClaimSaves() {
+  return claimSaveTimers.size > 0 || claimPendingBuilders.size > 0 || claimSaveInFlight.size > 0;
+}
+
+// Empêcher la perte de modifications si l'utilisateur rafraîchit trop vite.
+// Note: on ne peut pas forcer un PUT authentifié via sendBeacon (headers Authorization),
+// donc on affiche un avertissement navigateur en cas de sauvegardes en attente.
+window.addEventListener("beforeunload", (e) => {
+  if (!hasPendingClaimSaves()) return;
+  e.preventDefault();
+  e.returnValue = "";
+});
 
 async function saveClaimToServer(claimId, patch) {
   console.log('[saveClaimToServer] Sauvegarde claim:', { claimId, patch, mode: USE_MOCK ? 'MOCK' : 'BACKEND' });
@@ -4699,6 +4996,8 @@ async function saveClaimToServer(claimId, patch) {
     const response = await apiPut(`/claims/${claimId}`, patch);
     console.log('[saveClaimToServer] ✓ Succès:', response);
     claimSaveStatus.set(claimId, "saved");
+    claimSaveErrorMsg.delete(claimId);
+    updateClaimSaveIndicator(claimId);
     // Mise à jour du state.claims en local
     const claimIndex = state.claims.findIndex(c => c.id === claimId);
     if (claimIndex >= 0) {
@@ -4711,38 +5010,89 @@ async function saveClaimToServer(claimId, patch) {
         }
       }
     }
+
+    // Rafraîchir les vues (résumé, bilan, rapport) pour refléter le changement immédiatement
+    renderRegistreSummary();
+    renderBilan();
+    renderRapport();
+
+    // Vérifier que le backend a réellement persisté (sinon le refresh revient en arrière)
+    void verifyClaimPersistedOnServer(claimId, patch);
     return response;
   } catch (e) {
     console.error('[saveClaimToServer] ✗ ERREUR:', { claimId, patch, error: e.message || e });
     claimSaveStatus.set(claimId, "error");
+    claimSaveErrorMsg.set(claimId, e?.message || String(e));
+    updateClaimSaveIndicator(claimId);
     throw e;
   }
 }
 
-function scheduleSaveClaim(claimId, patchBuilder) {
-  console.log('[scheduleSaveClaim] Appelé avec:', { claimId, hasPatchBuilder: !!patchBuilder });
+async function executeSaveClaimNow(claimId) {
+  const patchBuilder = claimPendingBuilders.get(claimId);
+  if (!patchBuilder) return;
+
+  // On capture le patch immédiatement (pour éviter toute mutation ultérieure)
+  const patch = patchBuilder();
+  console.log('[executeSaveClaimNow] Patch construit:', { claimId, patch });
+
+  // Marquer le patch comme consommé (le prochain schedule remplacera si besoin)
+  claimPendingBuilders.delete(claimId);
+
+  const p = (async () => {
+    try {
+      claimSaveStatus.set(claimId, "saving");
+      updateClaimSaveIndicator(claimId);
+      await saveClaimToServer(claimId, patch);
+    } catch (e) {
+      console.error("Erreur autosave:", e);
+    } finally {
+      claimSaveInFlight.delete(claimId);
+    }
+  })();
+  claimSaveInFlight.set(claimId, p);
+  return p;
+}
+
+async function flushPendingClaimSaves() {
+  const ids = Array.from(claimPendingBuilders.keys());
+  // Exécuter immédiatement tout ce qui est en attente
+  await Promise.all(ids.map((id) => executeSaveClaimNow(id)));
+  // Et attendre les éventuels in-flight
+  await Promise.all(Array.from(claimSaveInFlight.values()));
+}
+
+function scheduleSaveClaim(claimId, patchBuilder, options) {
+  console.log('[scheduleSaveClaim] Appelé avec:', { claimId, hasPatchBuilder: !!patchBuilder, options });
   // patchBuilder: fonction qui renvoie l'objet à envoyer au backend
   if (!claimId) {
     console.warn('[scheduleSaveClaim] ⚠️ claimId manquant, sauvegarde annulée!');
     return;
   }
+
+  if (typeof patchBuilder === 'function') {
+    claimPendingBuilders.set(claimId, patchBuilder);
+  }
+
+  const immediate = !!options?.immediate;
+  const debounceMs = Number.isFinite(options?.debounceMs) ? options.debounceMs : 600;
   
   // Marquer comme "en cours de sauvegarde"
   if (claimSaveTimers.has(claimId)) {
     clearTimeout(claimSaveTimers.get(claimId));
+    claimSaveTimers.delete(claimId);
+  }
+
+  if (immediate) {
+    void executeSaveClaimNow(claimId);
+    return;
   }
 
   const timeoutId = setTimeout(async () => {
-    console.log('[scheduleSaveClaim] Timer déclenché après 600ms pour claim:', claimId);
-    try {
-      claimSaveStatus.set(claimId, "saving");
-      const patch = patchBuilder();
-      console.log('[scheduleSaveClaim] Patch construit:', patch);
-      await saveClaimToServer(claimId, patch);
-    } catch (e) {
-      console.error("Erreur autosave:", e);
-    }
-  }, 600); // 600ms debounce
+    console.log(`[scheduleSaveClaim] Timer déclenché après ${debounceMs}ms pour claim:`, claimId);
+    claimSaveTimers.delete(claimId);
+    await executeSaveClaimNow(claimId);
+  }, debounceMs);
 
   claimSaveTimers.set(claimId, timeoutId);
 }
@@ -4795,6 +5145,7 @@ function renderTeamMembers() {
       if (!member) return;
 
       const body = {
+        id: member.id,
         email: member.email,
         name: member.name,
         role: member.role,
@@ -4807,9 +5158,14 @@ function renderTeamMembers() {
         body[field] = el.value;
       }
 
-      const updated = await apiPut("/team-members/" + member.id, body);
-      state.teamMembers[idx] = updated;
-      renderTeamMembers();
+      try {
+        const updated = await apiPut("/team-members", body);
+        state.teamMembers[idx] = updated;
+        console.log('✅ Membre mis à jour:', updated);
+      } catch (e) {
+        console.error('❌ Erreur mise à jour membre:', e);
+        alert('Erreur lors de la sauvegarde : ' + e.message);
+      }
     });
   });
 
@@ -5549,6 +5905,9 @@ async function loadData() {
     if (!ok) return;
   }
 
+  // Éviter d'écraser des modifications locales non encore persistées
+  await flushPendingClaimSaves();
+
   let health = null;
   try {
     health = await apiGet("/health");
@@ -5557,17 +5916,27 @@ async function loadData() {
   }
   if (health && health.user) {
     state.currentUser = health.user;
+    console.log('✅ Utilisateur chargé depuis /health:', state.currentUser);
   } else {
     // Garder l'utilisateur issu de MSAL (checkAuth) si le backend ne renvoie pas d'objet user.
     state.currentUser = state.currentUser || { role: "user" };
+    console.warn('⚠️ /health n\'a pas retourné user, fallback:', state.currentUser);
   }
 
   renderUserBubble();
+
+  // Certains backends (notamment en local) ne supportent pas encore tous les endpoints.
+  // Ne pas bloquer tout le chargement si /amendments n'existe pas.
+  const amendmentsPromise = apiGet("/amendments").catch((err) => {
+    console.warn('⚠️ /amendments indisponible, on continue sans amendments:', err?.message || err);
+    return [];
+  });
 
   const basePromises = [
     apiGet("/projects"),
     apiGet("/taxes"),
     apiGet("/settings"),
+    amendmentsPromise,
     apiGet("/claims")
   ];
   // Ne charger les membres que pour les admins
@@ -5575,13 +5944,20 @@ async function loadData() {
     ? apiGet("/team-members").catch(() => ({ __error: true }))
     : Promise.resolve([]);
 
-  const [projects, taxes, settings, claims, teamMembersOrError] =
+  const [projects, taxes, settings, amendments, claims, teamMembersOrError] =
     await Promise.all([...basePromises, teamMembersPromise]);
 
   state.projects = projects;
   state.taxes = taxes;
   state.settings = settings;
+  state.amendments = Array.isArray(amendments) ? amendments : [];
   state.claims = claims;
+  
+  // Debug NLT5/NLT6
+  const nlt5Claims = claims.filter(c => c.project?.code === 'NLT5');
+  const nlt6Claims = claims.filter(c => c.project?.code === 'NLT6');
+  console.log('[loadData] NLT5 claims:', nlt5Claims.length, nlt5Claims.slice(0, 2));
+  console.log('[loadData] NLT6 claims:', nlt6Claims.length, nlt6Claims.slice(0, 2));
   
   console.log('[loadData] Données chargées:', {
     projects: state.projects?.length || 0,
@@ -5612,6 +5988,7 @@ async function loadData() {
   renderRapport();
   renderProjects();
   renderTaxes();
+  renderAmendments();
   renderSettings();
   renderTeamMembers();
   renderArchive();
@@ -5678,19 +6055,22 @@ document.addEventListener("DOMContentLoaded", async () => {
       // Appeler la fonction de rendu correspondante
       const renderMap = {
         'registre': async () => {
-          // Recharger les claims depuis le backend avant d'afficher
+          // Flusher les sauvegardes en attente puis recharger les claims depuis le backend avant d'afficher
+          await flushPendingClaimSaves();
           const claimsFromServer = await apiGet("/claims").catch(() => []);
           state.claims = claimsFromServer;
           renderRegistre();
         },
         'bilan': async () => {
-          // Recharger les claims depuis le backend avant d'afficher
+          // Flusher les sauvegardes en attente puis recharger les claims depuis le backend avant d'afficher
+          await flushPendingClaimSaves();
           const claimsFromServer = await apiGet("/claims").catch(() => []);
           state.claims = claimsFromServer;
           renderBilan();
         },
         'rapport': async () => {
-          // Recharger les claims depuis le backend avant d'afficher
+          // Flusher les sauvegardes en attente puis recharger les claims depuis le backend avant d'afficher
+          await flushPendingClaimSaves();
           const claimsFromServer = await apiGet("/claims").catch(() => []);
           state.claims = claimsFromServer;
           renderRapport();
@@ -5967,12 +6347,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // Ajout projet
   document.getElementById("btnAddProject")?.addEventListener("click", async () => {
-    if (isReadOnly()) {
-      alert("Mode lecture seule : ajout de projets non autorisé.");
-      return;
-    }
-    const role = state.currentUser?.role || "admin";
-    if (role !== "admin") {
+    if (isSettingsReadOnly()) {
       alert("Seuls les administrateurs peuvent ajouter des projets.");
       return;
     }
@@ -6003,14 +6378,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // Ajout taxe
-  document.getElementById("btnAddTax")?.addEventListener("click", async () => {
-    if (isReadOnly()) {
-      alert("Mode lecture seule : ajout de taxes non autorisé.");
+  // Import milestones NLT5/6 (admin)
+  document.getElementById("btnImportMilestonesNLT56")?.addEventListener("click", async () => {
+    if (isSettingsReadOnly()) {
+      alert("Seuls les administrateurs peuvent lancer l'import.");
       return;
     }
-    const role = state.currentUser?.role || "admin";
-    if (role !== "admin") {
+    if (!confirm("Importer les milestones NLT5/6 dans la base de données (sans doublons) ?")) return;
+    try {
+      const result = await apiPost("/admin/import-milestones", { projects: ["NLT5", "NLT6"] });
+      const created = result?.created ?? result?.summary?.created ?? 0;
+      const skipped = result?.skipped ?? result?.summary?.skipped ?? 0;
+      alert(`Import terminé. Créés: ${created} | Déjà présents: ${skipped}`);
+      await loadData();
+      // Aller au registre pour voir tout de suite
+      showTab("registre");
+    } catch (e) {
+      console.error(e);
+      alert("Erreur import milestones: " + (e.message || e));
+    }
+  });
+
+  // Ajout taxe
+  document.getElementById("btnAddTax")?.addEventListener("click", async () => {
+    if (isSettingsReadOnly()) {
       alert("Seuls les administrateurs peuvent ajouter des taxes.");
       return;
     }
